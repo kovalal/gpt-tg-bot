@@ -1,0 +1,21 @@
+{
+    "gpt-4o-mini": {
+        "default": true,
+        "description": "Самая быстрая и дешевая модель, однако легко справляется с большинством повседневных задач",
+        "pricing": {
+            "input_tokens": 0.15,
+            "cached_input_tokens": 0.075,
+            "output_tokens": 0.6
+        }
+    },
+    "gpt-4o": {
+        "description": "Оптимальная модель, для кодинга и решения сложных задач",
+        "pricing": {
+            "input_tokens": 2.5,
+            "cached_input_tokens": 1.25,
+            "output_tokens": 10.0
+        }
+    }
+}
+
+  
