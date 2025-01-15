@@ -1,5 +1,6 @@
 from celery_app import celery_app
 from aiogram import Bot, types
+from aiogram.enums.parse_mode import ParseMode
 
 import logging
 import asyncio
@@ -12,7 +13,7 @@ from dt.retrive import retrive_chain
 from dt.create import save_completion
 from dt.utils import retrive_messages_from_redis
 from bot.errors import send_error
-from tools import run_in_event_loop
+from tools import run_in_event_loop, format_and_split_message_for_telegram
 
 logger = logging.getLogger("CeleryWorker")
 bot = Bot(config.BOT_TOKEN)
@@ -48,10 +49,13 @@ async def process_message(clock_msg_id, from_user, message_id, text, reply_to_me
     ai_response = openai_client.generate_completion(messages=chain, model=user['model'])
     assistant_response = ai_response.choices[0].message.content
     # send response from ai to user
-    response_msg = await send_response(chat_id, message_id, assistant_response, clock_msg_id=clock_msg_id)
+    response_msg_pool = await send_response(chat_id, message_id, assistant_response, clock_msg_id=clock_msg_id)
     # save messages
-    save_message_task(**response_msg.dict())
-    msgs_to_bind = [message_id, response_msg.message_id] + [msg['message_id'] for msg in msg_pool]
+    msgs_to_bind = [message_id]
+    for resp_msg in response_msg_pool:
+        save_message_task(**resp_msg.dict())
+        msgs_to_bind.append(resp_msg.message_id)
+    msgs_to_bind.extend(msg['message_id'] for msg in msg_pool)
     # save completion
     save_completion({**ai_response.to_dict(), 'model': user['model'] or config.model_config['default']},
                     msgs_to_bind)
@@ -61,7 +65,21 @@ async def send_response(chat_id, message_id, text, clock_msg_id=None):
     """
     Send response 
     """
+    msgs = format_and_split_message_for_telegram(text)
+    sent_messages = []  # To store the message objects
+
     if clock_msg_id:
         await bot.delete_message(chat_id=chat_id, message_id=clock_msg_id)
-    return await bot.send_message(chat_id=chat_id, text=text, 
-                                  reply_to_message_id=message_id, reply_markup=types.ForceReply())
+
+    # Send each message in the list
+    for msg in msgs:
+        sent_message = await bot.send_message(
+            chat_id=chat_id,
+            text=msg,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_to_message_id=message_id,
+            reply_markup=types.ForceReply() if msg == msgs[-1] else None  # ForceReply only for the last message
+        )
+        sent_messages.append(sent_message)
+
+    return sent_messages
