@@ -7,15 +7,16 @@ from dt import retrive, update
 import tasks
 
 
-async def clear_context_handler(message: types.Message, *args, user: User = None, **kwargs):
+async def clear_context_handler(message: types.Message, *args, user: User = None, bot=None, **kwargs):
     """
-    Handler for clearing chat`s context
-    Remove forcing replay
+    Handler for clearing chat context.
+    Removes forced reply markup from the bot's last message.
     """
     try:
-        pass
+        tg_msg = await bot.send_message(chat_id=user.id, text="Reply markup cleared", reply_markup=types.ReplyKeyboardRemove())
+        await bot.delete_message(chat_id=user.id, message_id=tg_msg.message_id)
     except Exception as e:
-        message.bot.logger.error(f"Failed to clear forced reply: {e}")
+        message.bot.logger.error(f"Failed to clear forced reply for user {user.id}: {repr(e)}")
 
 
 async def model_command_handler(message: types.Message, *args, user: User = None, **kwargs):
