@@ -7,6 +7,37 @@ from dt import retrive, update
 import tasks
 
 
+# Обработчик команды для отправки инвойса
+async def send_invoice_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
+    try:
+        # Логирование начала процесса
+        bot.logger.info(f"Processing payment for user: {user.id if user else 'Unknown'}")
+
+        # Создание сообщения с кнопкой
+        keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="Месячная подписка - 300",
+                    callback_data="subscribe_month"
+                )
+            ]
+        ])
+
+        await message.answer(
+            "<b>Оплата подписки</b>\n\n"
+            "При оплате вы получаете возможность пользоваться ботом в течении месяца.\n"
+            "Пожалуйста, выберите удобный метод оплаты:",
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+        # Логирование ошибок
+        bot.logger.error(f"Failed to process payment: {e}")
+        await message.reply("Произошла ошибка при создании платежа. Попробуйте снова.")
+        raise
+
+
 async def clear_context_handler(message: types.Message, *args, user: User = None, bot=None, **kwargs):
     """
     Handler for clearing chat context.

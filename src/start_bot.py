@@ -34,6 +34,8 @@ dp.message(Command("model"))(handlers.model_command_handler)
 dp.callback_query(lambda callback: callback.data.startswith("model:"))(handlers.model_callback_handler)
 # clear context handler
 dp.message(Command("clear"))(handlers.clear_context_handler)
+# send billing
+dp.message(Command("invoice"))(handlers.send_invoice_handler)
 # handler for prompt
 dp.message()(handlers.prompt_handler)
 # add error handler
