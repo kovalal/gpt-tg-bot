@@ -8,10 +8,11 @@ import time
 
 import config
 from clients.gpt import OpenAIClient, replica_repr
+from clients.db import Session
 from tasks.database import save_message_task
 from dt.retrive import retrive_chain, retrive_user
 from dt.create import save_completion, create_message
-from dt.utils import retrive_messages_from_redis
+from dt.utils import retrive_messages_from_redis, get_messages_from_pool
 from bot.errors import send_error
 from tools import run_in_event_loop, format_and_split_message_for_telegram
 
@@ -32,23 +33,22 @@ async def process_message(clock_msg_id, from_user, message_id, text, reply_to_me
     user = retrive_user(user['id'])
     logger.info(f"Processing message from user {chat_id}: {reply_to_message}")
     #collect simultenious messages
-    msg_pool = retrive_messages_from_redis(chat_id)
-    if msg_pool:
-        coros = [create_message(msg, user).gpt_repr(bot) for msg in msg_pool]
-        last_msg = [await c for c in coros]
+    new_msgs = get_messages_from_pool(chat_id, user)
     #collect chain of messages
     chain = []
-    if reply_to_message:
-        chain = await retrive_chain(reply_to_message['message_id'], chat_id, bot)
-    
-    # add last message to chain
-    chain.extend(
-        last_msg
-    )
-
-    logger.info(chain)
+    with Session() as session:
+        if reply_to_message:
+            chain = retrive_chain(reply_to_message['message_id'], chat_id, session=session)
+        
+        # add last message to chain
+        chain.extend(
+            new_msgs
+        )
+        chat = [await m.gpt_repr(bot) for m in chain]
+    logger.info(chat)
+    logger.info(user.model)
     # Generate a response using OpenAI API
-    ai_response = openai_client.generate_completion(messages=chain, model=user.model)
+    ai_response = openai_client.generate_completion(messages=chat, model=user.model)
     assistant_response = ai_response.choices[0].message.content
     # send response from ai to user
     response_msg_pool = await send_response(chat_id, message_id, assistant_response, clock_msg_id=clock_msg_id)
@@ -57,7 +57,7 @@ async def process_message(clock_msg_id, from_user, message_id, text, reply_to_me
     for resp_msg in response_msg_pool:
         save_message_task(**resp_msg.dict())
         msgs_to_bind.append(resp_msg.message_id)
-    msgs_to_bind.extend(msg['message_id'] for msg in msg_pool)
+    msgs_to_bind.extend(map(lambda m: m.id, new_msgs))
     # save completion
     save_completion({**ai_response.to_dict(), 'model': user.model or config.model_config['default']},
                     msgs_to_bind)

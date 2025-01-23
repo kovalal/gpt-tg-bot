@@ -105,7 +105,8 @@ class Completion(Base):
     def calculate_cost(self):
         # Example cost calculation
         # Replace with your actual pricing logic
-        model_pricing = config.model_config.get(self.model) or config.model_config.get('default')
+        model_name = self.model or config.model_config['default']
+        model_pricing = config.model_config.get(model_name)
         if not model_pricing:
             raise ValueError(f"Pricing configuration not found for model: {self.model}")
 

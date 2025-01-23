@@ -23,11 +23,12 @@ def create_message(message_dict, user):
             "height": photo.get("height")
         }
 
+    default_message = 'опиши, если на изображении текст дай краткое саммари'
     message = Message(
         id=message_dict['message_id'],
         date=message_dict['date'],
         chat_id=message_dict['chat']['id'],
-        text=message_dict.get('text') or message_dict.get('caption') or 'опиши, если на изображении текст дай краткое саммари',
+        text=message_dict.get('text') or message_dict.get('caption') or default_message,
         user=user,
         reply_to_message=reply_to_message,
         image_file_id=image_file_id,

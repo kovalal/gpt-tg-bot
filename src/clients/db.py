@@ -1,5 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from functools import wraps
+import inspect
 import config
 
 
@@ -8,10 +10,34 @@ Session = sessionmaker(bind=engine)
 
 
 def db_session_decorator(func):
-    def wrapped(*args, **kwargs):
-        session = Session()
+    @wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        is_new = False
+        session = kwargs.pop('session', None)
+        if not session:
+            is_new = True
+            session = Session()
         try:
             return func(*args, **kwargs, session=session)
         finally:
-            session.close()
-    return wrapped
+            if is_new:
+                session.close()
+
+    @wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        is_new = False
+        session = kwargs.pop('session', None)
+        if not session:
+            is_new = True
+            session = Session()
+        try:
+            return await func(*args, **kwargs, session=session)
+        finally:
+            if is_new:
+                session.close()
+
+    # Check if the function is a coroutine
+    if inspect.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper

@@ -22,13 +22,12 @@ def retrive_user(user_id, session=None):
 
 
 @db_session_decorator
-async def retrive_chain(message_id, chat_id, bot=None, session=None):
+def retrive_chain(message_id, chat_id, session=None):
     last = retrive_message(message_id, chat_id, session=session)
-    
-    chain = [await last.gpt_repr(bot)]
+    chain = [last]
     while last.reply_to_message:
         last = retrive_message(last.reply_to_message, chat_id, session=session)
-        chain.append(await last.gpt_repr(bot))
+        chain.append(last)
     return chain[::-1]
     
 
