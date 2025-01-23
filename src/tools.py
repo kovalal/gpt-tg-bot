@@ -1,6 +1,7 @@
 import json
 import asyncio
 import re
+import base64
 from functools import wraps
 
 def load_model_config(file_path):
@@ -97,3 +98,20 @@ def format_and_split_message_for_telegram(message, max_length=4000):
         messages.append(current_chunk)
 
     return messages
+
+
+async def retrieve_image_base64(bot, file_id: str) -> str:
+    try:
+        # Get file information from Telegram
+        file_info = await bot.get_file(file_id)
+        
+        # Download the file content into memory
+        file_data = await bot.download_file(file_info.file_path)
+        
+        # Encode the file content as a base64 string
+        base64_image = base64.b64encode(file_data.read()).decode("utf-8")
+        
+        return base64_image
+    except Exception as e:
+        bot.logger.error(f"Failed to retrieve or encode image: {e}")
+        return None

@@ -37,8 +37,8 @@ class OpenAIClient:
             raise
 
 
-def replica_repr(text, role='user'):
+def replica_repr(content, role='user'):
     return {
         "role": role, 
-        "content": text
+        "content": content
     }

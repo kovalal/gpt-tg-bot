@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
 from clients.gpt import replica_repr
+from tools import retrieve_image_base64
 import config
 
 Base = declarative_base()
@@ -44,6 +45,8 @@ class Message(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     reply_to_message = Column(BigInteger, nullable=True)
     completion_id = Column(String, ForeignKey("completions.id"), nullable=True)
+    image_file_id = Column(String, nullable=True)  # Telegram file ID
+    image_metadata = Column(JSON, nullable=True)  # Additional image metadata (e.g., size, type)
 
     # Relationships
     user = relationship("User", back_populates="messages")
@@ -53,9 +56,27 @@ class Message(Base):
         PrimaryKeyConstraint('chat_id', 'id'),
     )
 
-    def gpt_repr(self):
-        text = ''.join([m.text for m in self.completion.messages if self.user == m.user])
-        return replica_repr(text, 'assistant' if self.user.is_bot else 'user')
+    def get_role(self):
+        return 'assistant' if self.user.is_bot else 'user'
+
+    async def gpt_repr(self, bot=None):
+        content = []
+        if self.completion:
+            text = ''.join([m.text for m in self.completion.messages if self.user == m.user])
+            content.append({"type": "text", "text": text})
+        else:
+            content.append({"type": "text", "text": self.text})
+
+        # Include the image content if it exists
+        if self.image_file_id and bot:
+            base64_image = await retrieve_image_base64(bot, self.image_file_id)
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+            })
+
+        # Use OpenAI's replica representation method
+        return replica_repr(content, self.get_role())
     
 
 class Completion(Base):

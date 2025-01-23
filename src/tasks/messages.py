@@ -9,8 +9,8 @@ import time
 import config
 from clients.gpt import OpenAIClient, replica_repr
 from tasks.database import save_message_task
-from dt.retrive import retrive_chain
-from dt.create import save_completion
+from dt.retrive import retrive_chain, retrive_user
+from dt.create import save_completion, create_message
 from dt.utils import retrive_messages_from_redis
 from bot.errors import send_error
 from tools import run_in_event_loop, format_and_split_message_for_telegram
@@ -29,24 +29,26 @@ async def process_message(clock_msg_id, from_user, message_id, text, reply_to_me
     Process the user's message and send a response via Telegram.
     """
     chat_id = from_user['id']
-
+    user = retrive_user(user['id'])
     logger.info(f"Processing message from user {chat_id}: {reply_to_message}")
     #collect simultenious messages
     msg_pool = retrive_messages_from_redis(chat_id)
     if msg_pool:
-        text = ''.join([msg['text'] for msg in msg_pool])
+        coros = [create_message(msg, user).gpt_repr(bot) for msg in msg_pool]
+        last_msg = [await c for c in coros]
     #collect chain of messages
     chain = []
     if reply_to_message:
-        chain = retrive_chain(reply_to_message['message_id'], chat_id)
+        chain = await retrive_chain(reply_to_message['message_id'], chat_id, bot)
     
     # add last message to chain
-    chain.append(
-        replica_repr(text, 'user')
+    chain.extend(
+        last_msg
     )
 
+    logger.info(chain)
     # Generate a response using OpenAI API
-    ai_response = openai_client.generate_completion(messages=chain, model=user['model'])
+    ai_response = openai_client.generate_completion(messages=chain, model=user.model)
     assistant_response = ai_response.choices[0].message.content
     # send response from ai to user
     response_msg_pool = await send_response(chat_id, message_id, assistant_response, clock_msg_id=clock_msg_id)
@@ -57,7 +59,7 @@ async def process_message(clock_msg_id, from_user, message_id, text, reply_to_me
         msgs_to_bind.append(resp_msg.message_id)
     msgs_to_bind.extend(msg['message_id'] for msg in msg_pool)
     # save completion
-    save_completion({**ai_response.to_dict(), 'model': user['model'] or config.model_config['default']},
+    save_completion({**ai_response.to_dict(), 'model': user.model or config.model_config['default']},
                     msgs_to_bind)
     
 
@@ -80,6 +82,7 @@ async def send_response(chat_id, message_id, text, clock_msg_id=None):
             reply_to_message_id=message_id,
             reply_markup=types.ForceReply() if msg == msgs[-1] else None  # ForceReply only for the last message
         )
+        logger.info(sent_message)
         sent_messages.append(sent_message)
 
     return sent_messages

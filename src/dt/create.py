@@ -4,6 +4,38 @@ from models import User, Message, Completion
 from clients.db import db_session_decorator
 
 
+def create_message(message_dict, user):
+    if message_dict.get('reply_to_message'):
+        reply_to_message = message_dict['reply_to_message']['message_id']
+    else:
+        reply_to_message = None
+
+    # Extract image details if available
+    image_file_id = None
+    image_metadata = None
+    if 'photo' in message_dict and message_dict['photo']:
+        # Get the highest resolution photo
+        photo = message_dict['photo'][-1]
+        image_file_id = photo['file_id']
+        image_metadata = {
+            "file_size": photo.get("file_size"),
+            "width": photo.get("width"),
+            "height": photo.get("height")
+        }
+
+    message = Message(
+        id=message_dict['message_id'],
+        date=message_dict['date'],
+        chat_id=message_dict['chat']['id'],
+        text=message_dict.get('text') or message_dict.get('caption'),
+        user=user,
+        reply_to_message=reply_to_message,
+        image_file_id=image_file_id,
+        image_metadata=image_metadata,
+    )
+    return message
+
+
 # Example function to insert a message and user
 @db_session_decorator
 def save_message_to_db(message_dict: dict, session: Session = None):
@@ -20,21 +52,9 @@ def save_message_to_db(message_dict: dict, session: Session = None):
             language_code=user_data.get('language_code'),
             is_premium=user_data.get('is_premium'),
         )
-        session.add(user)
+    session.add(user)
 
-    if message_dict.get('reply_to_message'):
-        reply_to_message = message_dict['reply_to_message']['message_id']
-    else:
-        reply_to_message = None
-
-    message = Message(
-        id=message_dict['message_id'],
-        date=message_dict['date'],
-        chat_id=message_dict['chat']['id'],
-        text=message_dict.get('text'),
-        user=user,
-        reply_to_message=reply_to_message
-    )
+    message = create_message(message_dict, user)
     session.add(message)
     session.commit()
 
