@@ -31,14 +31,18 @@ dp.message.middleware(middleware.MessageStorageMiddleware())
 dp.message.middleware(middleware.MessageCacheMiddleware())
 
 # handlers
+dp.message(Command("start"))(handlers.start)
+
+dp.message(Command("notify"))(handlers.notify_handler)
+
 # model menu handler
-dp.message(Command("model"))(handlers.model_command_handler)
+#dp.message(Command("model"))(handlers.model_command_handler)
 dp.callback_query(lambda callback: callback.data.startswith("model:"))(handlers.model_callback_handler)
 # clear context handler
 dp.message(Command("clear"))(handlers.clear_context_handler)
 
 # send billing
-dp.message(Command("invoice"))(handlers.send_invoice_handler)
+dp.message(Command("pay"))(handlers.send_invoice_handler)
 # Обработчик для подписки (пример уже существующего функционала)
 dp.callback_query(lambda c: c.data == "donate")(handlers.donate_callback_handler)
 # Обработчик для ввода суммы доната и отправки инвойса

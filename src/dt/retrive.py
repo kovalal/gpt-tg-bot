@@ -23,6 +23,11 @@ def retrive_user(user_id, session=None):
 
 
 @db_session_decorator
+def retrive_all_users(session=None):
+    return session.query(models.User).all()
+
+
+@db_session_decorator
 def retrive_chain(message_id, chat_id, session=None):
     last = retrive_message(message_id, chat_id, session=session)
     chain = [last]

@@ -10,6 +10,14 @@ import config
 import json
 
 
+async def start(message: types.Message, *args, user=None, bot=None, **kwargs):
+    await message.answer(
+        "Пиши свой запрос.\n" 
+        "Поддерживаемые модели: gpt-4o-mini, gpt-4o, o1, dallee.\n"
+        "Если хочешь, чтобы твой запрос обработала конкретная модель, попроси об этом в сообщении.",
+        parse_mode="HTML"
+    )
+
 class FSMPrompt:
     buying = "buying"
     donating = "donating"
@@ -23,12 +31,12 @@ async def send_invoice_handler(message: types.Message, *args, user=None, bot=Non
 
         # Создание сообщения с кнопкой
         keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
-            [
-                types.InlineKeyboardButton(
-                    text="Месячная подписка - 300",
-                    callback_data="subscribe_month"
-                )
-            ],
+            #[
+            #    types.InlineKeyboardButton(
+            #        text="Месячная подписка - 300",
+            #        callback_data="subscribe_month"
+            #    )
+            #],
             [
                 types.InlineKeyboardButton(
                     text="Донатить",
@@ -38,9 +46,10 @@ async def send_invoice_handler(message: types.Message, *args, user=None, bot=Non
         ])
 
         await message.answer(
-            "<b>Оплата подписки</b>\n\n"
-            "При оплате вы получаете возможность пользоваться ботом в течении месяца.\n"
-            "Пожалуйста, выберите удобный метод оплаты:",
+            #"<b>Оплата подписки</b>\n\n"
+            #"При оплате вы получаете возможность пользоваться ботом в течении месяца.\n"
+            #"Пожалуйста, выберите удобный метод оплаты:",
+            "<b>Финансовая поддержка проекта</b>\n\n",
             reply_markup=keyboard,
             parse_mode="HTML"
         )
@@ -186,3 +195,31 @@ async def prompt_handler(message: types.Message, *args, user=None, bot=None, **k
         bot.logger.error(f"Failed to enqueue task: {e}")
         await message.reply("При обработке сообщения произошла ошибка. Попробуйте позднее")
         raise
+
+
+async def notify_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
+    """
+    Обрабатывает команду /notify. Текст уведомления должен быть передан сразу после команды.
+    Например: /notify Внимание! Обновление системы.
+    
+    :param message: входящее сообщение
+    :param db: экземпляр сессии SQLAlchemy (или асинхронная сессия), через которую можно выполнить запрос
+    """
+    # Извлекаем текст уведомления (все, что после /notify)
+    notify_text = message.text.lstrip('/notify')
+    if not notify_text:
+        await message.reply("Пожалуйста, укажите текст уведомления после команды /notify")
+        return
+    
+    # Получаем всех пользователей из базы
+    users = retrive.retrive_all_users()
+    sent_count = 0
+    for user in users:
+        try:
+            # Отправляем уведомление каждому пользователю
+            await message.bot.send_message(user.id, notify_text)
+            sent_count += 1
+        except Exception as e:
+            message.bot.logger.error(f"Ошибка отправки уведомления пользователю {user.id}: {e}")
+
+    await message.reply(f"Уведомление отправлено {sent_count} пользователям.")
