@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 
-from models import User, Message, Completion
+from models import User, Message, Completion, Payment
 from clients.db import db_session_decorator
+import datetime
 
 
 def create_message(message_dict, user):
@@ -60,16 +61,7 @@ def save_message_to_db(message_dict: dict, session: Session = None):
     session.commit()
 
 
-@db_session_decorator
-def save_completion(completion_data: dict, message_ids: list, session: Session = None):
-    """
-    Save a Completion object into the database and link it to the specified messages.
-
-    :param session: SQLAlchemy session instance
-    :param completion_data: Dictionary containing completion fields from the API response
-    :param message_ids: List of message IDs to link to the completion
-    :return: The saved Completion object
-    """
+def create_completion(completion_data: dict) -> Completion:
     # Extract data from the completion_data dictionary
     completion_id = completion_data.get("id")
     system_fingerprint = completion_data.get("system_fingerprint")
@@ -83,7 +75,7 @@ def save_completion(completion_data: dict, message_ids: list, session: Session =
     completion_tokens_details = usage.get("completion_tokens_details", {})
 
     # Create a Completion object
-    completion = Completion(
+    return Completion(
         id=completion_id,
         system_fingerprint=system_fingerprint,
         #created=datetime.utcfromtimestamp(created_timestamp),
@@ -94,6 +86,17 @@ def save_completion(completion_data: dict, message_ids: list, session: Session =
         completion_tokens_details=completion_tokens_details
     )
 
+
+@db_session_decorator
+def save_completion(completion: Completion, message_ids: list, session: Session = None):
+    """
+    Save a Completion object into the database and link it to the specified messages.
+
+    :param session: SQLAlchemy session instance
+    :param completion_data: Dictionary containing completion fields from the API response
+    :param message_ids: List of message IDs to link to the completion
+    :return: The saved Completion object
+    """
     # Add the Completion to the session
     session.add(completion)
 
@@ -107,3 +110,24 @@ def save_completion(completion_data: dict, message_ids: list, session: Session =
     session.commit()
 
     return completion
+
+
+@db_session_decorator
+def create_payment(message, session: Session = None) -> Payment:
+        sp = message.successful_payment
+        total_amount = sp.total_amount  # сумма в копейках
+        rubles = total_amount // 100      # переводим в рубли
+        currency = sp.currency
+        payload = sp.invoice_payload
+        payment = Payment(
+            user_id=message.from_user.id,
+            telegram_payment_charge_id=sp.telegram_payment_charge_id,
+            provider_payment_charge_id=sp.provider_payment_charge_id,
+            total_amount=total_amount,
+            currency=currency,
+            invoice_payload=payload,
+            status='succeeded'
+        )
+        session.add(payment)
+        session.commit()
+        return Payment

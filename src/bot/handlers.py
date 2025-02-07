@@ -1,11 +1,19 @@
 from models import User
 from aiogram import types
+from aiogram.fsm.context import FSMContext
 
 import tasks.messages
 from .keyboards import get_models_keyboard
-from dt import retrive, update
+from dt import retrive, update, create
 import tasks
+import config
+import json
 
+
+class FSMPrompt:
+    buying = "buying"
+    donating = "donating"
+    
 
 # Обработчик команды для отправки инвойса
 async def send_invoice_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
@@ -19,6 +27,12 @@ async def send_invoice_handler(message: types.Message, *args, user=None, bot=Non
                 types.InlineKeyboardButton(
                     text="Месячная подписка - 300",
                     callback_data="subscribe_month"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="Донатить",
+                    callback_data="donate"
                 )
             ]
         ])
@@ -36,6 +50,87 @@ async def send_invoice_handler(message: types.Message, *args, user=None, bot=Non
         bot.logger.error(f"Failed to process payment: {e}")
         await message.reply("Произошла ошибка при создании платежа. Попробуйте снова.")
         raise
+
+
+# Обработчик для кнопки "Донатить"
+async def donate_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    # Запрос у пользователя ввода суммы доната в рублях
+    await callback_query.message.answer("Введите сумму доната в рублях (например, введите 100 для 100 рублей):")
+    # Устанавливаем состояние для ожидания ввода суммы
+    await state.set_state(FSMPrompt.donating)
+    await callback_query.answer()
+
+# Обработчик для ввода суммы доната и отправки инвойса
+async def donation_amount_handler(message: types.Message, state: FSMContext):
+    try:
+        amount_text = message.text.strip()
+        if not amount_text.isdigit():
+            await message.reply("Пожалуйста, введите сумму в рублях, используя только цифры не менее 100 (например, 500).")
+            return
+        # Конвертируем рубли в копейки
+        rubles = int(amount_text)
+        donation_amount = rubles * 100
+        prices = [types.LabeledPrice(label="Донат", amount=donation_amount)]
+        
+        await message.answer_invoice(
+            title="Донат",
+            description="Благодарим за вашу поддержку!",
+            payload="donation_payload",
+            provider_token=config.PROVIDER_TOKEN,
+            currency='RUB',
+            prices=prices,
+            need_phone_number=False,
+            need_email=False
+        )
+        await state.clear()
+    except Exception as e:
+        message.bot.logger.error(f"Ошибка при обработке доната: {e}")
+        await message.reply("Произошла ошибка при обработке вашего доната. Попробуйте еще раз.")
+        await state.clear()
+
+
+# Обработчик pre-checkout запроса (для всех платежей)
+async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    await pre_checkout_query.bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+# Обработчик успешного платежа (для всех платежей)
+# Если хотите отлавливать по фильтру успешного платежа, можно использовать F.successful_payment
+async def process_successful_payment(message: types.Message, state: FSMContext):
+    try:
+        # Извлекаем информацию об успешном платеже из сообщения
+        sp = message.successful_payment
+        total_amount = sp.total_amount  # сумма в копейках
+        rubles = total_amount // 100      # переводим в рубли
+        currency = sp.currency
+        payload = sp.invoice_payload
+
+        # Сохраняем информацию о платеже в базе данных
+        create.create_payment(message)
+
+        # Обработка в зависимости от типа платежа
+        if payload == "donation_payload":
+            await message.reply(f"Спасибо за донат на сумму {rubles} {currency}!🙏")
+            # Здесь можно добавить дополнительную логику для обработки доната (например, обновление БД)
+        elif payload == "bot_paid":
+            await message.reply(f"Платеж за подписку на сумму {rubles} {currency} прошел успешно!")
+            # Здесь можно добавить логику для обработки подписки (например, выдача доступа)
+        else:
+            await message.reply(f"Платеж на сумму {rubles} {currency} прошел успешно!")
+
+    except Exception as e:
+        message.bot.logger.error(f"Ошибка при обработке успешного платежа: {e}")
+    finally:
+        # Очистка состояния, если оно установлено
+        current_state = await state.get_state()
+        if current_state is not None:
+            await state.clear()
+
+# Обработчик неуспешного платежа (если требуется)
+async def process_unsuccessful_payment(message: types.Message, state: FSMContext):
+    await message.reply("Не удалось выполнить платеж!")
+    current_state = await state.get_state()
+    if current_state is not None:
+        await state.clear()
 
 
 async def clear_context_handler(message: types.Message, *args, user: User = None, bot=None, **kwargs):
@@ -83,6 +178,7 @@ async def model_callback_handler(callback_query: types.CallbackQuery):
 async def prompt_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
     try:
         # Enqueue message processing task
+        print(message)
         clock_msg = await message.reply("⏳")
         task = tasks.messages.process_message.delay(clock_msg.message_id, **message.dict(), user=user.as_dict())
         bot.logger.info(f"Enqueued task: {task.id}")

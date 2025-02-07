@@ -9,6 +9,7 @@ from clients.db import db_session_decorator
 
 
 def retrive_message(message_id, chat_id, session=None, bot=None):
+    print(message_id, chat_id)
     return session\
         .query(models.Message)\
         .options(joinedload(models.Message.user))\

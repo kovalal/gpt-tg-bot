@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-from clients.gpt import replica_repr
+#from clients.gpt import replica_repr
 from tools import retrieve_image_base64
 import config
 
@@ -25,6 +25,7 @@ class User(Base):
 
     # Relationships
     messages = relationship("Message", back_populates="user")
+    payments = relationship("Payment", back_populates="user")
 
     def gpt_role(self):
         if self.is_bot:
@@ -76,7 +77,7 @@ class Message(Base):
             })
 
         # Use OpenAI's replica representation method
-        return replica_repr(content, self.get_role())
+        return {"content": content, "role": self.get_role()}
     
 
 class Completion(Base):
@@ -86,7 +87,7 @@ class Completion(Base):
     system_fingerprint = Column(String, nullable=True)
     created = Column(DateTime, default=datetime.utcnow)
     model = Column(String, nullable=False)
-
+    
     # Usage fields
     prompt_tokens = Column(Integer, nullable=False)
     completion_tokens = Column(Integer, nullable=False)
@@ -98,30 +99,19 @@ class Completion(Base):
     # Relationships
     messages = relationship("Message", back_populates="completion")
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.calculate_cost()
 
-    def calculate_cost(self):
-        # Example cost calculation
-        # Replace with your actual pricing logic
-        model_name = self.model or config.model_config['default']
-        model_pricing = config.model_config.get(model_name)
-        if not model_pricing:
-            raise ValueError(f"Pricing configuration not found for model: {self.model}")
-
-        pricing = model_pricing['pricing']
-        input_token_cost = pricing['input_tokens']
-        cached_input_token_cost = pricing['cached_input_tokens']
-        output_token_cost = pricing['output_tokens']
-
-        # Extract details from completion_tokens_details
-        cached_input_tokens = self.completion_tokens_details.get("cached_input_tokens", 0) if self.completion_tokens_details else 0
-
-        # Calculate costs
-        input_cost = (self.prompt_tokens * input_token_cost) / 10 ** 6
-        cached_cost = (cached_input_tokens * cached_input_token_cost) / 10 ** 6
-        output_cost = (self.completion_tokens * output_token_cost) / 10 ** 6
-
-        # Assign the total cost
-        self.cost = input_cost + cached_cost + output_cost
+class Payment(Base):
+    __tablename__ = 'payments'
+    
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    telegram_payment_charge_id = Column(String, nullable=False)
+    provider_payment_charge_id = Column(String, nullable=True)
+    total_amount = Column(Integer, nullable=False)  # сумма в копейках
+    currency = Column(String, nullable=False)
+    invoice_payload = Column(String, nullable=False)
+    status = Column(String, nullable=True)  # например, "succeeded", "failed" и т.д.
+    created = Column(DateTime, default=datetime.utcnow)
+    
+    # Связь с пользователем
+    user = relationship("User", back_populates="payments")

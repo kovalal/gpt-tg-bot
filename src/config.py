@@ -20,4 +20,8 @@ ERROR_CHAT_ID = os.getenv("ERROR_CHAT_ID")
 if not ERROR_CHAT_ID:
     raise ValueError("ERROR_CHAT_ID is not set in environment variables")
 
+PROVIDER_TOKEN = os.getenv("PROVIDER_TOKEN")
+if not PROVIDER_TOKEN:
+    raise ValueError("PROVIDER_TOKEN is not set in environment variables")
+
 

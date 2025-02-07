@@ -110,7 +110,6 @@ async def retrieve_image_base64(bot, file_id: str) -> str:
         
         # Encode the file content as a base64 string
         base64_image = base64.b64encode(file_data.read()).decode("utf-8")
-        
         return base64_image
     except Exception as e:
         bot.logger.error(f"Failed to retrieve or encode image: {e}")
