@@ -53,7 +53,7 @@ dp.pre_checkout_query()(handlers.process_pre_checkout_query)
 dp.message(lambda m: m.successful_payment is not None)(handlers.process_successful_payment)
 # Обработчик неуспешного платежа (если требуется)
 dp.message(StateFilter(FSMPrompt.buying))(handlers.process_unsuccessful_payment)
-
+dp.message(lambda message: message.content_type == 'voice')(handlers.voice_handler)
 # handler for prompt
 dp.message()(handlers.prompt_handler)
 # add error handler

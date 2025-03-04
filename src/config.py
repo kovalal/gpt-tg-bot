@@ -14,7 +14,7 @@ if not DB_URL:
     raise ValueError("DB_URL is not set in environment variables")
 
 model_config = load_model_config('settings/models.json')
-model_config['default'] = [k for k, v in model_config.items() if v.get('default')][0]
+#model_config['default'] = [k for k, v in model_config.items() if v.get('default')][0]
 
 ERROR_CHAT_ID = os.getenv("ERROR_CHAT_ID")
 if not ERROR_CHAT_ID:

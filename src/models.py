@@ -4,7 +4,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-#from clients.gpt import replica_repr
 from tools import retrieve_image_base64
 import config
 
@@ -46,8 +45,12 @@ class Message(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     reply_to_message = Column(BigInteger, nullable=True)
     completion_id = Column(String, ForeignKey("completions.id"), nullable=True)
+    
     image_file_id = Column(String, nullable=True)  # Telegram file ID
     image_metadata = Column(JSON, nullable=True)  # Additional image metadata (e.g., size, type)
+
+    audio_file_id = Column(String, nullable=True)  # Telegram file ID для аудио
+    audio_metadata = Column(JSON, nullable=True)   # Метаданные аудио (например, длительность, mime_type, размер файла)
 
     # Relationships
     user = relationship("User", back_populates="messages")
@@ -75,6 +78,16 @@ class Message(Base):
                 "type": "image_url",
                 "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
             })
+        
+        #if self.audio_file_id and bot:
+        #    base64_audio = await retrieve_audio_base64(bot, self.audio_file_id)
+        #    content.append({
+        #        "type": "input_audio",
+        #        "input_audio": {
+        #            "data": base64_audio,
+        #            "format": "wav"  
+        #        }
+        #    })
 
         # Use OpenAI's replica representation method
         return {"content": content, "role": self.get_role()}

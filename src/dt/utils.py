@@ -37,6 +37,21 @@ def retrive_messages_from_redis(user_id: str):
     return [json.loads(msg.decode('utf-8')) for msg in messages]
 
 
+def save_msg_redis(tg_msg, expire=5):
+    user_id = tg_msg['from_user']['id']
+                #message_id = event.message_id
+                #timestamp = event.date.timestamp()
+    cache_key = f"user:{user_id}:messages"
+    # Append the message to the Redis cache
+    if isinstance(tg_msg, dict):
+        event_str = json.dumps(tg_msg, indent=4, sort_keys=True, default=str)
+    else:
+        event_str = json.dumps(tg_msg.dict(), indent=4, sort_keys=True, default=str)
+    redis_client.rpush(cache_key, event_str)
+    redis_client.expire(cache_key, expire)  # Set expiration 
+    return cache_key
+
+
 def get_messages_from_pool(chat_id: int, user: User) -> list[dict]:
     """collect messages from cache"""
     #msg_pool = retrive_messages_from_redis(chat_id)

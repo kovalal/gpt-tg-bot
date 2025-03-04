@@ -19,9 +19,16 @@ def send_error(coro):
     async def wrapped(*args, user=None, **kwargs):
         try:
             return await coro(*args, user=user, **kwargs)
+        except UserException as e:
+            error_msg = f'{e}'
+            await bot.send_message(user['id'], error_msg)
         except Exception as e:
             error_msg = f"Ошибка ({user['id']}) {user['username']} {user['last_name']} {user['first_name']} - {e}"\
             f"\n{traceback.format_exc(-1)}"
             await bot.send_message(config.ERROR_CHAT_ID, error_msg)
             raise
     return wrapped
+
+
+class UserException(BaseException):
+    pass

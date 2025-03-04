@@ -159,7 +159,7 @@ async def model_command_handler(message: types.Message, *args, user: User = None
     Handler for the /model command.
     Shows the menu for model selection.
     """
-    current_model = user.model or "gpt-4o-mini"
+    current_model = user.model or "auto"
 
     await message.answer(f"Вы используете модель {current_model}. Выберите какую модель вы хотите использовать дальше:", 
                          reply_markup=get_models_keyboard())
@@ -187,9 +187,22 @@ async def model_callback_handler(callback_query: types.CallbackQuery):
 async def prompt_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
     try:
         # Enqueue message processing task
+        clock_msg = await message.reply("⏳")
+        task = tasks.messages.process_message.delay(clock_msg_id=clock_msg.message_id, **message.dict(), user=user.as_dict())
+        bot.logger.info(f"Enqueued task: {task.id}")
+    except Exception as e:
+        bot.logger.error(f"Failed to enqueue task: {e}")
+        await message.reply("При обработке сообщения произошла ошибка. Попробуйте позднее")
+        raise
+
+
+async def voice_handler(message: types.Message, *args, user=None, bot=None, **kwargs):
+    # ставим выполнение транскрибации в очередь
+    try:
+        # Enqueue message processing task
         print(message)
         clock_msg = await message.reply("⏳")
-        task = tasks.messages.process_message.delay(clock_msg.message_id, **message.dict(), user=user.as_dict())
+        task = tasks.messages.transcribe_voice.delay(clock_msg_id=clock_msg.message_id, message=message.dict(), user=user.as_dict())
         bot.logger.info(f"Enqueued task: {task.id}")
     except Exception as e:
         bot.logger.error(f"Failed to enqueue task: {e}")

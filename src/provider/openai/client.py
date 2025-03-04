@@ -58,3 +58,11 @@ class OpenAIClient:
         except Exception as e:
             logger.error(f"Failed to generate completion: {e}")
             raise
+
+    def transcribe(self, **kwargs) -> str:
+        try:
+            response = openai.audio.transcriptions.create(**kwargs)
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate completion: {e}")
+            raise

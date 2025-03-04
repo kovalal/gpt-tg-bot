@@ -4,7 +4,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message
 
 from tasks.database import save_message_task  # Celery task for saving messages
-from dt.utils import get_user_or_create
+from dt.utils import get_user_or_create, save_msg_redis
 
 
 class MessageStorageMiddleware(BaseMiddleware):
@@ -73,15 +73,7 @@ class MessageCacheMiddleware(BaseMiddleware):
         if 'command' not in data:  # Skip commands
             event.bot.logger.info("Processing message for storage")
             try:
-                user_id = event.from_user.id
-                message_id = event.message_id
-                timestamp = event.date.timestamp()
-                cache_key = f"user:{user_id}:messages"
-
-                # Append the message to the Redis cache
-                event_str = json.dumps(event.dict(), indent=4, sort_keys=True, default=str)
-                self.redis_client.rpush(cache_key, event_str)
-                self.redis_client.expire(cache_key, 5)  # Set expiration for 3 seconds
+                cache_key = save_msg_redis(event.dict(), 5)
 
                 # Optionally, check for other parts of the message
                 messages = self.redis_client.lrange(cache_key, 0, -1)

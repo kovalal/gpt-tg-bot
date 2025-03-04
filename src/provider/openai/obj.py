@@ -7,6 +7,14 @@ import hashlib
 import json
 
 
+class GPT4oAudio(BaseModel):
+    """Данные об аудиоответе модели"""
+    id: str  # Уникальный идентификатор аудиофайла
+    expires_at: int  # Время истечения срока действия аудиофайла (Unix timestamp)
+    data: str  # Base64-кодированные аудиоданные
+    transcript: Optional[str] = None  # Транскрипция аудио
+
+
 class GPT4oUsage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
@@ -15,7 +23,8 @@ class GPT4oUsage(BaseModel):
 
 class GPT4oChoiceMessage(BaseModel):
     role: str
-    content: str
+    content: Optional[str] = None  # Делаем content необязательным
+    audio: Optional[GPT4oAudio] = None  # Добавляем поле для аудиоданных (base64)
 
 class GPT4oChoice(BaseModel):
     index: int
@@ -77,6 +86,7 @@ class GPT4oResponse(BaseModel):
 class DalleImageData(BaseModel):
     revised_prompt: str
     url: str
+
 
 class DalleResponse(BaseModel):
     created: int

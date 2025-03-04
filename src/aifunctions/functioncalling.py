@@ -4,7 +4,7 @@ from functools import partial
 class FunctionCalling():
 
     model = "gpt-4o-mini"
-    sys_prompt = "You are a model selection assistant. Your job is to analyze the user's task description, complexity, urgency, and expected output type, and select the most appropriate model:\n- Use `gpt4o-mini` for simple or lightweight tasks.\n- Use `gpt4o` for medium complexity or general-purpose tasks.\n- Use `gpt-o1` for advanced, high-complexity, or mission-critical tasks.\n- Use `dallee-3` for any image generation tasks.\nMake sure to return only the selected model name as the output."
+    sys_prompt = "You are a model selection assistant. Your job is to analyze the user's task description, complexity, urgency, and expected output type, and select one the most appropriate model:\n- Use `gpt4o-mini` for simple or lightweight tasks.\n- Use `gpt4o` for medium complexity or general-purpose tasks.\n- Use `gpt-o1` for advanced, high-complexity, or mission-critical tasks.\n- Use `dallee-3` for any image generation tasks.\nMake sure to return only the selected model name as the output."
     tool_choice = "required"
     
     def __init__(self, client, tools):
@@ -24,13 +24,7 @@ class FunctionCalling():
                     "text": self.sys_prompt
                 }]
             },
-            {
-                'role': 'user', 
-                'content': [{
-                    'type': 'text',
-                    'text': prompt
-                }]
-        }]
+            *prompt]
 
     def choice(self, prompt):
         return self.client.generate_completion(
@@ -42,6 +36,7 @@ class FunctionCalling():
 
     def run(self, prompt, callback=None):
         call_response = self.choice(prompt)
+        print(call_response)
         tool_call = call_response.choices[0].message.tool_calls[0]
         func_name = tool_call.function.name
         call = self.tools[func_name]

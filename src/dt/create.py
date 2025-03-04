@@ -23,8 +23,21 @@ def create_message(message_dict, user):
             "width": photo.get("width"),
             "height": photo.get("height")
         }
-
     default_message = 'опиши, если на изображении текст дай краткое саммари'
+    # Извлечение информации об аудио (голосовом сообщении)
+    audio_file_id = None
+    audio_metadata = None
+    if 'voice' in message_dict and message_dict['voice']:
+        voice = message_dict['voice']
+        audio_file_id = voice.get('file_id')
+        audio_metadata = {
+            "duration": voice.get("duration"),
+            "mime_type": voice.get("mime_type"),
+            "file_size": voice.get("file_size")
+        }
+        default_message = ''
+
+    
     message = Message(
         id=message_dict['message_id'],
         date=message_dict['date'],
@@ -34,6 +47,8 @@ def create_message(message_dict, user):
         reply_to_message=reply_to_message,
         image_file_id=image_file_id,
         image_metadata=image_metadata,
+        audio_file_id=audio_file_id,
+        audio_metadata=audio_metadata,
     )
     return message
 

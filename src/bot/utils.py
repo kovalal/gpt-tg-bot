@@ -4,6 +4,8 @@ from aiogram import types
 import aiohttp
 import functools
 import io
+import base64
+
 
 def send_to_file(func):
     @functools.wraps(func)
@@ -92,3 +94,63 @@ async def send_image_response(bot, chat_id, message_id, image_url, clock_msg_id=
             text=f"❌ Failed to send the image. Error: {str(e)}",
             reply_to_message_id=message_id
         )
+
+
+async def send_audio_response(bot, chat_id, message_id, audio_base64, transcript=None, clock_msg_id=None):
+    """
+    Send an audio response to a user.
+
+    :param bot: Telegram bot instance.
+    :param chat_id: ID of the chat to send the audio to.
+    :param message_id: ID of the message to reply to.
+    :param audio_base64: Base64-encoded audio data.
+    :param transcript: Optional transcript of the audio.
+    :param clock_msg_id: ID of the clock message to delete (if exists).
+    """
+    try:
+        #if clock_msg_id:
+        #    await bot.delete_message(chat_id=chat_id, message_id=clock_msg_id)
+
+        # Декодируем аудиофайл из base64
+        audio_data = base64.b64decode(audio_base64)
+
+        # Создаем объект файла в памяти
+        audio_file = io.BytesIO(audio_data)
+        audio_file.name = "audio.ogg"  # Telegram лучше принимает OGG формат
+
+        # Отправляем аудиофайл пользователю
+        sent_message = await bot.send_voice(
+            chat_id=chat_id,
+            voice=types.BufferedInputFile(audio_file.getvalue(), filename="audio.ogg"),
+            caption=transcript or "Аудиосообщение",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_to_message_id=message_id
+        )
+
+        return [sent_message]
+
+    except Exception as e:
+        # Обработка ошибок
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"❌ Не удалось отправить аудиосообщение. Ошибка: {str(e)}",
+            reply_to_message_id=message_id
+        )
+
+
+def delete_notify_decorator(bot):
+    def decorator(task):
+        @functools.wraps(task)
+        async def wrapped(clock_msg_id=None, from_user=None, *args, **kwargs):
+            try:
+                result = await task(*args, from_user=from_user, **kwargs)
+            except:
+                raise
+            finally:
+                if clock_msg_id and from_user:
+                    chat_id = from_user['id']
+                    await bot.delete_message(chat_id=chat_id, message_id=clock_msg_id)
+            return result
+        return wrapped
+    return decorator
+        

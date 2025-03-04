@@ -3,6 +3,8 @@ import asyncio
 import re
 import base64
 from functools import wraps
+from pydub import AudioSegment
+import io
 
 def load_model_config(file_path):
     with open(file_path, 'r') as file:
@@ -114,3 +116,27 @@ async def retrieve_image_base64(bot, file_id: str) -> str:
     except Exception as e:
         bot.logger.error(f"Failed to retrieve or encode image: {e}")
         return None
+
+
+async def retrieve_audio(bot, file_id: str):
+    # Получаем информацию о файле и его путь
+    file = await bot.get_file(file_id)
+    file_path = file.file_path
+    
+    # Загружаем содержимое файла (байты)
+    return await bot.download_file(file_path)
+
+
+async def retrieve_audio_base64(bot, file_id: str) -> str:
+    
+    audio_bytes = await retrieve_audio(bot, file_id)
+
+    # Указываем формат "ogg", так как голосовые сообщения Telegram обычно в формате OGG/Opus
+    audio_segment = AudioSegment.from_ogg(audio_bytes)
+    
+    # Конвертируем аудио в формат WAV
+    buffer = io.BytesIO()
+    audio_segment.export(buffer, format="wav")
+    # Кодируем полученные данные в base64
+    wav_data = buffer.getvalue()
+    return base64.b64encode(wav_data).decode('utf-8')
