@@ -18,7 +18,7 @@ def retrive_message(message_id, chat_id, session=None, bot=None):
 
 
 @db_session_decorator
-def retrive_user(user_id, session=None):
+def retrive_user(user_id, session=None) -> models.User:
     return session.query(models.User).filter_by(id=user_id).first()
 
 

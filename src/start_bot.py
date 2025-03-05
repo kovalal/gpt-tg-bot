@@ -35,9 +35,13 @@ dp.message(Command("start"))(handlers.start)
 
 dp.message(Command("notify"))(handlers.notify_handler)
 
+# menu settings handler
+dp.message(Command("settings"))(handlers.settings_command_handler)
+
 # model menu handler
-#dp.message(Command("model"))(handlers.model_command_handler)
+dp.callback_query(lambda callback: callback.data and callback.data.startswith("settings:"))(handlers.settings_callback_handler)
 dp.callback_query(lambda callback: callback.data.startswith("model:"))(handlers.model_callback_handler)
+
 # clear context handler
 dp.message(Command("clear"))(handlers.clear_context_handler)
 

@@ -70,6 +70,28 @@ class PromptGpt4o(PromptGptBase):
     }
 
 
+class PromptGpto3mini(PromptGptBase):
+    model = 'o3-mini'
+    scheme = {
+        "name": "select_model_o3-mini",
+        "description": "Selects the o3-mini model for difficult math, statistic and another tasks, demanding research",
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "task_description": {
+                    "type": "string",
+                    "description": "Detailed description of the task or prompt"
+                },
+            },
+            "additionalProperties": False,
+            "required": [
+                "task_description",
+            ]
+        }
+    }
+
+
 class PromptGpt4o_mini_audio(PromptGptBase):
     model = 'gpt-4o-mini-audio-preview'
     scheme = {

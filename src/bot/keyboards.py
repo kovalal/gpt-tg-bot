@@ -24,3 +24,18 @@ def get_models_keyboard():
         inline_keyboard.append([button])  # Each button in its own row
     # Pass the constructed inline_keyboard to InlineKeyboardMarkup
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
+
+# Функция для создания клавиатуры настроек
+def get_settings_keyboard():
+    buttons = []
+    # Кнопка для выбора модели
+    model_button = InlineKeyboardButton(text="Модель", callback_data="settings:model")
+    retain_context_button = InlineKeyboardButton(
+        text="Автоматическое удержание контекста", 
+        callback_data="settings:retain_context"
+    )
+    buttons.append([model_button])
+    buttons.append([retain_context_button])
+    # Здесь можно добавить и другие кнопки настроек, если потребуется
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

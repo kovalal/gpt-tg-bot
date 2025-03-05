@@ -32,7 +32,7 @@ class OpenAIModelBase(ABC):
     async def gpt_repr(self, msg, bot=None):
         content = []
         if msg.completion:
-            text = ''.join([m.text for m in msg.completion.messages if self.user == m.user])
+            text = ''.join([m.text for m in msg.completion.messages])
             content.append({"type": "text", "text": text})
         else:
             content.append({"type": "text", "text": msg.text})
@@ -51,10 +51,9 @@ class OpenAIModelBase(ABC):
 
 
 class GptModelBase(OpenAIModelBase, ABC):
-
-    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None):
+    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None, force_reply=None):
         text = ai_response.choices[0].message.content
-        return await send_response(bot, chat_id, message_id, text, clock_msg_id=clock_msg_id)
+        return await send_response(bot, chat_id, message_id, text, clock_msg_id=clock_msg_id, force_reply=force_reply)
 
     def invoke(self, messages=None, **kwargs):        
         return self.client.generate_completion(messages=messages or self.chat, model=self.model, **kwargs)
@@ -84,10 +83,10 @@ class GptAudioModel(OpenAIModelBase):
     }
 
     async def add_context(self, chain, bot):
-        self.chat = [await m.gpt_repr(bot) for m in chain]
+        self.chat = [await self.gpt_repr(bot) for m in chain]
         return self.chat
 
-    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None):
+    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None, force_reply=None):
         audio = ai_response.choices[0].message.audio.data
         text = ai_response.choices[0].message.audio.transcript
         return await send_audio_response(bot, chat_id, message_id, audio, text, clock_msg_id)
@@ -111,7 +110,7 @@ class OpenaiDalee(OpenAIModelBase):
     def get_completion(self, api_response):
         return DalleResponse.get_completion(api_response.to_dict()|{'model': self.model})
     
-    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None):
+    async def send_response(self, bot, chat_id, message_id, ai_response, clock_msg_id=None, force_reply=None):
         url = ai_response.data[0].url
         text = ai_response.data[0].revised_prompt
         return await send_image_response(bot, chat_id, message_id, url, clock_msg_id, text)
@@ -131,7 +130,7 @@ class OpenaiWhisper(OpenAIModelBase):
 class LlmModel():
     def __new__(cls, model=None):
         model_name = model or config.model_config['default']
-        if model_name in ['gpt-4o', 'gpt-4o-mini']:
+        if model_name in ['gpt-4o', 'gpt-4o-mini', 'gpt-4.5-preview']:
             return GptModel(model_name)
         elif model_name in ['o1', 'o3-mini']:
             return GptReasoningModel(model_name)

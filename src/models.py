@@ -2,6 +2,7 @@ from sqlalchemy import (Column, Integer, String, Boolean, DateTime, ForeignKey, 
                          BigInteger, JSON, Float, PrimaryKeyConstraint)
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict
 from datetime import datetime
 
 from tools import retrieve_image_base64
@@ -21,6 +22,7 @@ class User(Base):
     language_code = Column(String, nullable=True)
     is_premium = Column(Boolean, nullable=True)
     model = Column(String, nullable=True)
+    settings = Column(MutableDict.as_mutable(JSON), nullable=True, default=dict)
 
     # Relationships
     messages = relationship("Message", back_populates="user")
@@ -33,6 +35,23 @@ class User(Base):
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    
+    def set_settings(self, settings_name, settings_value):
+        """
+        Обновляет или добавляет значение настройки с ключом settings_name.
+        При этом все другие настройки остаются нетронутыми.
+        """
+        if self.settings is None:
+            self.settings = {}
+        self.settings[settings_name] = settings_value
+
+    def get_settings(self, settings_name):
+        if self.settings is None:
+            settings = {}
+        else:
+            settings = self.settings
+        default_value = config.default_user_settings[settings_name]
+        return settings.get(settings_name, default_value)
 
 
 class Message(Base):

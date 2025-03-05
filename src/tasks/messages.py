@@ -17,7 +17,7 @@ from bot.utils import send_response, delete_notify_decorator
 from tools import run_in_event_loop, format_and_split_message_for_telegram, retrieve_audio
 
 from aifunctions.functioncalling import FunctionCalling
-from aifunctions.gpt_llm import PromptGpt4o, PromptGpt4o_mini, PromptGpt4o_mini_audio
+from aifunctions.gpt_llm import PromptGpt4o, PromptGpt4o_mini, PromptGpt4o_mini_audio, PromptGpto3mini
 from aifunctions.dallee import PromptDalle3
 
 logger = logging.getLogger("CeleryWorker")
@@ -25,7 +25,7 @@ bot = Bot(config.BOT_TOKEN)
 
 openai_client = OpenAIClient(api_key=config.OPENAI_KEY)
 
-FuncCall = FunctionCalling(openai_client, tools=[PromptGpt4o, PromptGpt4o_mini, PromptDalle3, PromptGpt4o_mini_audio])
+FuncCall = FunctionCalling(openai_client, tools=[PromptGpt4o, PromptGpt4o_mini, PromptDalle3, PromptGpt4o_mini_audio, PromptGpto3mini])
 
 
 @celery_app.task(ignore_result=True)
@@ -38,6 +38,8 @@ async def process_message(from_user, message_id, text, reply_to_message, user=No
     """
     chat_id = from_user['id']
     user = retrive_user(user['id'])
+    retain_context_flag = user.get_settings("retain_context")
+
     logger.info(f"Processing message from user {chat_id}: {reply_to_message}")
     #collect simultenious messages
     new_msgs = get_messages_from_pool(chat_id, user)
@@ -64,8 +66,8 @@ async def process_message(from_user, message_id, text, reply_to_message, user=No
         model = LlmModel(model_name)
         await model.add_context(chain, bot)
         ai_response = model.invoke()
-        
-    response_msg_pool = await model.send_response(bot, chat_id, message_id, ai_response)
+    
+    response_msg_pool = await model.send_response(bot, chat_id, message_id, ai_response, force_reply=retain_context_flag)
     completion = model.get_completion(ai_response)
     
     for resp_msg in response_msg_pool:

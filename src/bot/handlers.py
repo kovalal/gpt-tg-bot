@@ -3,7 +3,7 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 
 import tasks.messages
-from .keyboards import get_models_keyboard
+from .keyboards import get_models_keyboard, get_settings_keyboard
 from dt import retrive, update, create
 import tasks
 import config
@@ -154,15 +154,40 @@ async def clear_context_handler(message: types.Message, *args, user: User = None
         message.bot.logger.error(f"Failed to clear forced reply for user {user.id}: {repr(e)}")
 
 
-async def model_command_handler(message: types.Message, *args, user: User = None, **kwargs):
+# Хендлер для команды /settings
+async def settings_command_handler(message: types.Message, *args, user: User = None, **kwargs):
+    header = f"""
+    Настройки: 
+    модель - {user.model or 'auto'}
+    удержание контекста - {'включено' if user.get_settings("retain_context") else 'выключено'}
+    """
+    await message.answer(header, reply_markup=get_settings_keyboard())
+
+
+async def settings_callback_handler(callback_query: types.CallbackQuery):
     """
     Handler for the /model command.
     Shows the menu for model selection.
     """
-    current_model = user.model or "auto"
+    data = callback_query.data
+    user_id = callback_query.from_user.id
+    user = retrive.retrive_user(user_id)
+    
+    if data == "settings:model":
+        current_model = user.model or "auto"
 
-    await message.answer(f"Вы используете модель {current_model}. Выберите какую модель вы хотите использовать дальше:", 
-                         reply_markup=get_models_keyboard())
+        await callback_query.message.answer(f"Вы используете модель {current_model}. Выберите какую модель вы хотите использовать дальше:", 
+                            reply_markup=get_models_keyboard())
+    elif data == "settings:retain_context":
+        new_value = not user.get_settings("retain_context")
+        print(new_value)
+        update.set_user_config(user, "retain_context", new_value)
+        # Заготовка для логики автоматического удержания контекста
+        await callback_query.message.answer(f"Удержание контекста {'включено' if new_value else 'выключено'}")
+        await callback_query.answer()
+
+    else:
+        await callback_query.answer("Неизвестная настройка")
 
 
 async def model_callback_handler(callback_query: types.CallbackQuery):
@@ -171,7 +196,6 @@ async def model_callback_handler(callback_query: types.CallbackQuery):
     Updates the user's model in the database.
     
     :param callback_query: CallbackQuery object
-    :param session: SQLAlchemy session instance
     """
     model_name = callback_query.data.split(":")[1]
 
@@ -200,7 +224,6 @@ async def voice_handler(message: types.Message, *args, user=None, bot=None, **kw
     # ставим выполнение транскрибации в очередь
     try:
         # Enqueue message processing task
-        print(message)
         clock_msg = await message.reply("⏳")
         task = tasks.messages.transcribe_voice.delay(clock_msg_id=clock_msg.message_id, message=message.dict(), user=user.as_dict())
         bot.logger.info(f"Enqueued task: {task.id}")

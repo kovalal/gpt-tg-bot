@@ -9,9 +9,9 @@ import base64
 
 def send_to_file(func):
     @functools.wraps(func)
-    async def wrapper(bot, chat_id, message_id, text, clock_msg_id=None):
+    async def wrapper(bot, chat_id, message_id, text, clock_msg_id=None, force_reply=None):
         try:
-            return await func(bot, chat_id, message_id, text, clock_msg_id=None)
+            return await func(bot, chat_id, message_id, text, clock_msg_id=None, force_reply=force_reply)
         except:
             error_file = types.BufferedInputFile(text.encode(), filename=f"{text[:20]}.txt")
 
@@ -22,7 +22,7 @@ def send_to_file(func):
 
 
 @send_to_file
-async def send_response(bot, chat_id, message_id, text, clock_msg_id=None):
+async def send_response(bot, chat_id, message_id, text, clock_msg_id=None, force_reply=None):
     """
     Send response 
     """
@@ -35,19 +35,19 @@ async def send_response(bot, chat_id, message_id, text, clock_msg_id=None):
     # Send each message in the list
     for msg in msgs:
         try:
-            sent_message = await bot.send_message1(
+            sent_message = await bot.send_message(
                 chat_id=chat_id,
                 text=msg,
                 parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message_id,
-                reply_markup=types.ForceReply() if msg == msgs[-1] else None  # ForceReply only for the last message
+                reply_markup=types.ForceReply() if msg == msgs[-1] and force_reply else None  # ForceReply only for the last message
             )
         except Exception as e:
             sent_message = await bot.send_message(
                 chat_id=chat_id,
                 text=msg,
                 reply_to_message_id=message_id,
-                reply_markup=types.ForceReply() if msg == msgs[-1] else None  # ForceReply only for the last message
+                reply_markup=types.ForceReply() if msg == msgs[-1] and force_reply else None  # ForceReply only for the last message
             )
         sent_messages.append(sent_message)
     return sent_messages

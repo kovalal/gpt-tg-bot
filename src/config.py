@@ -24,4 +24,6 @@ PROVIDER_TOKEN = os.getenv("PROVIDER_TOKEN")
 if not PROVIDER_TOKEN:
     raise ValueError("PROVIDER_TOKEN is not set in environment variables")
 
-
+default_user_settings = {
+    "retain_context": True
+}
